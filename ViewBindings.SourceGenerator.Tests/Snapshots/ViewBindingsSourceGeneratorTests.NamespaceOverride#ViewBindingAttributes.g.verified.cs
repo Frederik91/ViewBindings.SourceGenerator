@@ -1,4 +1,6 @@
-﻿using System;
+﻿//HintName: ViewBindingAttributes.g.cs
+
+using System;
 
 namespace ViewBindings.SourceGenerator.Contracts.Attributes;
 
@@ -14,5 +16,16 @@ public class ViewBindingAttribute : Attribute
     public ViewBindingAttribute(Type viewType)
     {
         ViewType = viewType;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Assembly)]
+public class ViewBindingsNamespaceAttribute : Attribute
+{
+    public string Namespace { get; }
+
+    public ViewBindingsNamespaceAttribute(string @namespace)
+    {
+        Namespace = @namespace;
     }
 }
