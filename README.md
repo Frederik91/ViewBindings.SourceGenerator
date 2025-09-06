@@ -1,13 +1,7 @@
 ﻿# ViewBinding.SourceGenerator
 The ViewBinding.SourceGenerator allows you to bind view models to views within a generated ResourceDictionary. 
 
-The source generator uses a Attribute to mark view models to include in the generated view binding. This attribute can be found in the ```ViewBindings.SourceGenerator.Contracts``` nuget package. 
-
-## Use attribute from source generator
-It's also an option to include the attribute from the source generator, to do this use the following package reference. 
-```xml
-<PackageReference Include="ViewBindings.SourceGenerator" Version="0.1.0" PrivateAssets="all" ExcludeAssets="runtime" />
-```
+The source generator uses attributes to mark view models and to configure the generated namespace. These attributes are automatically made available when referencing the `ViewBindings.SourceGenerator` package; no additional contracts package is required. The generated attributes are marked as `internal` so they remain scoped to your application and do not leak to consuming assemblies.
 
 ## Usage
 To bind a view model to a view, add the ```[ViewBinding]``` attribute to the view model, specifying the view type as a named argument. If no view type is provided, the attribute will search for the first view with a matching name based on a predetermined naming convention.

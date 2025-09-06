@@ -9,7 +9,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using ViewBindings.SourceGenerator.Contracts.Attributes;
 using ViewBindings.SourceGenerator.Exceptions;
 using ViewBindings.SourceGenerator.Extensions;
 
@@ -23,6 +22,41 @@ public class ViewBindingsSourceGenerator : IIncrementalGenerator
 #if DEBUG
         //Debugger.Launch();
 #endif
+        context.RegisterPostInitializationOutput(static ctx =>
+        {
+            const string attributeText = @"
+using System;
+
+namespace ViewBindings.SourceGenerator.Contracts.Attributes;
+
+[AttributeUsage(AttributeTargets.Class)]
+internal sealed class ViewBindingAttribute : Attribute
+{
+    public Type? ViewType { get; set; }
+
+    public ViewBindingAttribute()
+    {
+    }
+
+    public ViewBindingAttribute(Type viewType)
+    {
+        ViewType = viewType;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Assembly)]
+internal sealed class ViewBindingsNamespaceAttribute : Attribute
+{
+    public string Namespace { get; }
+
+    public ViewBindingsNamespaceAttribute(string @namespace)
+    {
+        Namespace = @namespace;
+    }
+}
+";
+            ctx.AddSource("ViewBindingAttributes.g.cs", SourceText.From(attributeText, Encoding.UTF8));
+        });
         // Do a simple filter for viewModels
         IncrementalValuesProvider<ClassDeclarationSyntax> viewModelDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
@@ -64,10 +98,10 @@ public class ViewBindingsSourceGenerator : IIncrementalGenerator
 
                 // Is the attribute the [ViewBindingAttribute] attribute?
                 if (fullName == "ViewBindings.SourceGenerator.Contracts.Attributes.ViewBindingAttribute")
-                {
-                    // return the enum
-                    return classDeclarationSyntax;
-                }
+                    {
+                        // return the enum
+                        return classDeclarationSyntax;
+                    }
             }
         }
 
@@ -272,10 +306,11 @@ public class ViewBindingsSourceGenerator : IIncrementalGenerator
             if (viewModelType is null)
                 throw new GeneratorException(viewModelType, $"Could not get declared symbol from {viewModelDeclarationSyntax.Identifier.ToFullString()}");
 
-            var attribute = viewModelType.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == nameof(ViewBindingAttribute) || x.AttributeClass?.Name == nameof(ViewBindingAttribute).Replace("Attribute", ""));
+            var attribute = viewModelType.GetAttributes().FirstOrDefault(x =>
+                x.AttributeClass?.Name is "ViewBindingAttribute" or "ViewBinding");
 
             if (attribute is null)
-                throw new GeneratorException(viewModelType, $"{nameof(ViewBindingAttribute)} was not found on view model");
+                throw new GeneratorException(viewModelType, "ViewBindingAttribute was not found on view model");
 
             INamedTypeSymbol? viewTypeSymbol = null;
             var namedArguments = attribute.NamedArguments;
@@ -290,7 +325,7 @@ public class ViewBindingsSourceGenerator : IIncrementalGenerator
 
             // Check if the view is specified on a named argument
             if (viewTypeSymbol is null && !namedArguments.IsEmpty && namedArguments.FirstOrDefault(arg =>
-                    arg.Key == nameof(ViewBindingAttribute.ViewType)) is { } viewTypeArgument)
+                    arg.Key == "ViewType") is { } viewTypeArgument)
             {
                 if (viewTypeArgument.Value.Kind != TypedConstantKind.Error)
                     viewTypeSymbol = viewTypeArgument.Value.Value as INamedTypeSymbol;

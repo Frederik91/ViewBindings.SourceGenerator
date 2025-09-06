@@ -24,12 +24,6 @@
     <!-- Pack the generator dll in the analyzers/dotnet/cs path -->
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 
-    <!-- Pack the attributes dll in the analyzers/dotnet/cs path -->
-    <None Include="$(OutputPath)\ViewBindings.SourceGenerator.Contracts.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    
-    <!-- Pack the attributes dll in the lib\netstandard2.0 path -->
-    <None Include="$(OutputPath)\ViewBindings.SourceGenerator.Contracts.dll" Pack="true" PackagePath="lib\netstandard2.0" Visible="true" />
-
     <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
@@ -40,12 +34,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-  </ItemGroup>
-
-  <!-- Reference the attributes from the generator to compile against them -->
-  <!-- Ensure we specify PrivateAssets so the NuGet doesn't have any dependencies -->
-  <ItemGroup>
-    <ProjectReference Include="..\ViewBindings.SourceGenerator.Contracts\ViewBindings.SourceGenerator.Contracts.csproj" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

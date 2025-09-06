@@ -1,6 +1,4 @@
 ﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
-using ViewBindings.SourceGenerator.Contracts.Attributes;
-
 namespace ViewBindings.SourceGenerator.Extensions;
 
 public static class ClassDeclarationSyntaxExtensions
@@ -11,7 +9,8 @@ public static class ClassDeclarationSyntaxExtensions
         {
             foreach (var attribute in attributeList.Attributes)
             {
-                if (attribute.Name.ToString() == nameof(ViewBindingAttribute) || attribute.Name + "Attribute" == nameof(ViewBindingAttribute))
+                var name = attribute.Name.ToString();
+                if (name == "ViewBinding" || name == "ViewBindingAttribute")
                     return true;
             }
         }
