@@ -97,20 +97,19 @@ jobs:
             artifacts/*.nupkg
             artifacts/*.snupkg
 
-      - name: Publish to NuGet.org (package)
-        if: secrets.NUGET_API_KEY != ''
+      - name: Publish to NuGet.org (Release)
+        if: ${{ env.NUGET_API_KEY != '' }}
+        env:
+          # Step-scoped: secret only exists for this step
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          dotnet nuget push "artifacts/*.nupkg" \
+          dotnet nuget push "./.artifacts/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key "$NUGET_API_KEY" \
             --skip-duplicate
-
-      - name: Publish symbols to NuGet.org
-        if: secrets.NUGET_API_KEY != ''
-        run: |
-          dotnet nuget push "artifacts/*.snupkg" \
+          dotnet nuget push "./.artifacts/*.snupkg" \
             --source https://api.nuget.org/v3/index.json \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key "$NUGET_API_KEY" \
             --skip-duplicate
 
       - name: Publish to GitHub Packages
