@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [ main, develop, "release/**", "feature/**", "hotfix/**" ]
+  push:
+    branches: [ main, develop, "release/**", "feature/**", "hotfix/**" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '6.x'
+
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: |
+          dotnet build --no-restore --configuration Release \
+            -p:Version=${{ steps.gitversion.outputs.NuGetVersionV2 }} \
+            -p:AssemblyVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:FileVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:InformationalVersion='${{ steps.gitversion.outputs.InformationalVersion }}' \
+            -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: Pack (artifact only)
+        run: |
+          dotnet pack ViewBindings.SourceGenerator/ViewBindings.SourceGenerator.csproj \
+            --configuration Release \
+            --output artifacts \
+            -p:Version=${{ steps.gitversion.outputs.NuGetVersionV2 }} \
+            -p:AssemblyVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:FileVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:InformationalVersion='${{ steps.gitversion.outputs.InformationalVersion }}' \
+            -p:ContinuousIntegrationBuild=true \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+      - name: Output computed version
+        run: |
+          echo "GitVersion: ${{ steps.gitversion.outputs.FullSemVer }}"
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ github.sha }}
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg

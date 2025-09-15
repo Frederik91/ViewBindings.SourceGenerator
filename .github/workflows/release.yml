@@ -1,0 +1,135 @@
+name: release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: '6.x'
+
+      - name: Determine version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+        with:
+          useConfigFile: true
+
+      - name: Create and push tag if missing
+        env:
+          TAG: v${{ steps.gitversion.outputs.MajorMinorPatch }}
+        shell: bash
+        run: |
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists locally.";
+          else
+            echo "Creating local tag ${TAG}.";
+            git config user.name "github-actions";
+            git config user.email "github-actions@users.noreply.github.com";
+            git tag -a "${TAG}" -m "Release ${{ steps.gitversion.outputs.FullSemVer }}";
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists on origin.";
+          else
+            echo "Pushing tag ${TAG} to origin.";
+            git push origin "${TAG}";
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: |
+          dotnet build --no-restore --configuration Release \
+            -p:Version=${{ steps.gitversion.outputs.NuGetVersionV2 }} \
+            -p:AssemblyVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:FileVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:InformationalVersion='${{ steps.gitversion.outputs.InformationalVersion }}' \
+            -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: Pack
+        run: |
+          dotnet pack ViewBindings.SourceGenerator/ViewBindings.SourceGenerator.csproj \
+            --configuration Release \
+            --output artifacts \
+            -p:Version=${{ steps.gitversion.outputs.NuGetVersionV2 }} \
+            -p:AssemblyVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:FileVersion=${{ steps.gitversion.outputs.MajorMinorPatch }} \
+            -p:InformationalVersion='${{ steps.gitversion.outputs.InformationalVersion }}' \
+            -p:ContinuousIntegrationBuild=true \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-v${{ steps.gitversion.outputs.MajorMinorPatch }}
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+
+      - name: Publish to NuGet.org (package)
+        if: secrets.NUGET_API_KEY != ''
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --skip-duplicate
+
+      - name: Publish symbols to NuGet.org
+        if: secrets.NUGET_API_KEY != ''
+        run: |
+          dotnet nuget push "artifacts/*.snupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --skip-duplicate
+
+      - name: Publish to GitHub Packages
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${OWNER}/index.json" \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.gitversion.outputs.MajorMinorPatch }}
+          name: Release ${{ steps.gitversion.outputs.MajorMinorPatch }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

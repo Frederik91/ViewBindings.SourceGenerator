@@ -1,0 +1,16 @@
+mode: ContinuousDeployment
+branches:
+  main:
+    tag: ''
+  develop:
+    tag: alpha
+  release:
+    tag: rc
+  hotfix:
+    tag: hotfix
+  feature:
+    tag: useBranchName
+ignore:
+  sha: []
+increment: Minor
+commit-message-incrementing: Enabled

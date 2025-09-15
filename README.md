@@ -117,3 +117,8 @@ using ViewBindings.SourceGenerator.Contracts.Attributes;
 ```
 
 The generator will prefer this namespace over the default `<project namespace>.Resources` value.
+
+## Releasing
+- Tag the commit on the default branch using `v<major>.<minor>.<patch>` (for example, `v1.2.3`).
+- Push the tag or create a GitHub Release with that tag; the release workflow builds, tests, packs, publishes to NuGet and GitHub Packages, and attaches artifacts.
+- Configure repository secret `NUGET_API_KEY` to enable publishing to NuGet.org.
